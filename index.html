@@ -4,17 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Cash Flow System</title>
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="andom.png">
-    
-    <!-- CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* [CSS TETAP SAMA SEPERTI SEBELUMNYA] */
         :root {
             --bg-main: #0b0914; --bg-card: rgba(32, 28, 61, 0.7); --bg-solid: #201c3d;
             --accent-yellow: #ffb703; --accent-magenta: #d81159; --text-primary: #ffffff;
@@ -71,23 +65,21 @@
         .saldo-box { text-align: right; }
         .saldo-box div { font-size: 14px; color: var(--text-muted); }
         .saldo-box span { font-size: 20px; font-weight: bold; color: var(--accent-yellow); }
-        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: var(--bg-solid); padding: 30px; border-radius: 10px; width: 400px; border: 1px solid var(--accent-yellow); }
     </style>
 </head>
 <body>
     <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div>
 
-    <!-- Login View (Ubah ke type email) -->
+    <!-- Login View -->
     <div id="login-view">
         <form class="login-box" id="login-form">
             <i class="fa-solid fa-wallet icon-header"></i>
             <h2>FIN<span style="color:var(--text-primary);">FAMILY</span></h2>
             <p style="color: var(--text-muted); margin-bottom: 30px; font-size: 14px;">Sistem Arus Kas Keluarga</p>
-            
             <input type="email" id="email" placeholder="Email Akun" required>
             <input type="password" id="password" placeholder="Kata Sandi" required>
-            
             <button type="submit" id="btn-login"><i class="fa-solid fa-right-to-bracket"></i> Masuk</button>
         </form>
     </div>
@@ -175,7 +167,6 @@
                     <form id="form-transaksi" class="flex-row" style="align-items: flex-start;">
                         <div class="flex-col"><label>Tanggal</label><input type="date" id="input-date" required></div>
                         <div class="flex-col"><label>Kategori</label>
-                            <!-- Value disesuaikan dengan ENUM database -->
                             <select id="input-category" required>
                                 <option value="income">Income</option>
                                 <option value="outcome">Outcome</option>
@@ -217,32 +208,57 @@
         </div>
     </div>
 
-    <!-- Modal -->
-    <div id="modal-overlay">
+    <!-- Modal Details -->
+    <div id="modal-details" class="modal-overlay">
         <div class="modal-box">
             <h4 style="color: var(--accent-yellow); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">Detail Transaksi</h4>
             <div id="modal-content" style="font-size: 14px; line-height: 1.6;"></div>
-            <button type="button" onclick="document.getElementById('modal-overlay').style.display='none'" style="margin-top: 20px;" class="btn-secondary">Tutup</button>
+            <button type="button" onclick="document.getElementById('modal-details').style.display='none'" style="margin-top: 20px;" class="btn-secondary">Tutup</button>
+        </div>
+    </div>
+
+    <!-- Modal Edit -->
+    <div id="modal-edit" class="modal-overlay">
+        <div class="modal-box">
+            <h4 style="color: var(--accent-yellow); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">Edit Transaksi</h4>
+            <form id="form-edit">
+                <input type="hidden" id="edit-id">
+                <label>Tanggal</label>
+                <input type="date" id="edit-date" required>
+                <label>Kategori</label>
+                <select id="edit-category" required>
+                    <option value="income">Income</option>
+                    <option value="outcome">Outcome</option>
+                    <option value="tabungan emas">Tabungan Emas</option>
+                    <option value="tabungan tunai">Tabungan Tunai</option>
+                </select>
+                <label>Nominal (Rp)</label>
+                <input type="number" id="edit-amount" required>
+                <label>Catatan</label>
+                <input type="text" id="edit-desc" required>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button type="submit" id="btn-save-edit">Update</button>
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('modal-edit').style.display='none'">Batal</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
-        // INISIALISASI SUPABASE
         const supabaseUrl = 'https://syoyknhtzysairvdaeyk.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5b3lrbmh0enlzYWlydmRhZXlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0ODk3NjQsImV4cCI6MjEwOTA2NTc2NH0.p7-zYQe8wl7y7PvWFwJ7leBu0fiYmxebaPE7CEyq0Ms';
         const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
         let chartInstance = null;
-        let transactions = []; // Data dummy dihapus, array kosong siap diisi dari database
-        let currentUser = null; // Menyimpan status user yang sedang login
+        let transactions = [];
+        let currentUser = null;
 
-        // PANTAU STATUS LOGIN OTOMATIS
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (session) {
                 currentUser = session.user;
                 document.getElementById('login-view').style.display = 'none';
                 document.getElementById('app-view').style.display = 'flex';
-                initApp(); // Tarik data saat berhasil masuk
+                initApp();
             } else {
                 currentUser = null;
                 document.getElementById('app-view').style.display = 'none';
@@ -250,31 +266,18 @@
             }
         });
 
-        // PROSES LOGIN KE SUPABASE
         document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-login');
-            btn.disabled = true;
-            btn.innerHTML = 'Memproses...';
-
+            btn.disabled = true; btn.innerHTML = 'Memproses...';
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            
-            if (error) {
-                alert('Gagal Masuk: ' + error.message);
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Masuk';
-            }
-            // Jika sukses, onAuthStateChange akan terpicu otomatis
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) { alert('Gagal Masuk: ' + error.message); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Masuk'; }
         });
 
-        async function handleLogout() {
-            await supabaseClient.auth.signOut();
-        }
+        async function handleLogout() { await supabaseClient.auth.signOut(); }
 
-        // INISIALISASI TANGGAL & TARIK DATA
         async function initApp() {
             const today = new Date();
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
@@ -286,79 +289,54 @@
             document.getElementById('filter-start').value = firstDay;
             document.getElementById('filter-end').value = lastDay;
             document.getElementById('input-date').value = currentDay;
-
             await fetchTransactions();
         }
 
-        // READ: AMBIL DATA DARI TABEL 'transactions'
         async function fetchTransactions() {
-            const { data, error } = await supabaseClient
-                .from('transactions')
-                .select('*')
-                .order('transaction_date', { ascending: false }); // Urutkan terbaru
-
-            if (error) {
-                console.error("Gagal menarik data:", error);
-                return;
-            }
-
-            // Mapping struktur kolom database ke format UI kita
-            transactions = data.map(t => ({
-                id: t.id,
-                date: t.transaction_date,
-                category: t.category,
-                amount: t.amount,
-                desc: t.description,
-                file: t.attachment_url || ''
-            }));
-
-            updateGlobalHeaders();
-            renderDashboard();
-            renderLogTable();
+            const { data, error } = await supabaseClient.from('transactions').select('*').order('transaction_date', { ascending: false });
+            if (error) { console.error("Gagal menarik data:", error); return; }
+            transactions = data.map(t => ({ id: t.id, date: t.transaction_date, category: t.category, amount: t.amount, desc: t.description, file: t.attachment_url || '' }));
+            updateGlobalHeaders(); renderDashboard(); renderLogTable();
         }
 
-        // CREATE: SIMPAN TRANSAKSI BARU KE DATABASE
         document.getElementById('form-transaksi').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-submit-tx');
-            btn.disabled = true;
-            btn.innerText = 'Menyimpan...';
-
-            const date = document.getElementById('input-date').value;
-            const category = document.getElementById('input-category').value;
-            const amount = parseInt(document.getElementById('input-amount').value);
-            const desc = document.getElementById('input-desc').value;
-
-            const { data, error } = await supabaseClient
-                .from('transactions')
-                .insert([{
-                    user_id: currentUser.id,
-                    transaction_date: date,
-                    category: category,
-                    amount: amount,
-                    description: desc
-                }]);
-
-            if (error) {
-                alert('Gagal menyimpan: ' + error.message);
-            } else {
-                this.reset();
-                document.getElementById('input-date').value = new Date().toISOString().split('T')[0];
-                await fetchTransactions(); // Refresh UI setelah insert
+            btn.disabled = true; btn.innerText = 'Menyimpan...';
+            const { error } = await supabaseClient.from('transactions').insert([{
+                user_id: currentUser.id, transaction_date: document.getElementById('input-date').value,
+                category: document.getElementById('input-category').value, amount: parseInt(document.getElementById('input-amount').value),
+                description: document.getElementById('input-desc').value
+            }]);
+            if (error) { alert('Gagal menyimpan: ' + error.message); } else {
+                this.reset(); document.getElementById('input-date').value = new Date().toISOString().split('T')[0];
+                await fetchTransactions();
             }
-            
-            btn.disabled = false;
-            btn.innerText = 'Simpan';
+            btn.disabled = false; btn.innerText = 'Simpan';
         });
 
-        // LOGIKA UI (FORMAT, RENDER, TAB) - SAMA SEPERTI SEBELUMNYA
+        document.getElementById('form-edit').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-edit');
+            btn.disabled = true; btn.innerText = 'Updating...';
+            
+            const id = document.getElementById('edit-id').value;
+            const { error } = await supabaseClient.from('transactions').update({
+                transaction_date: document.getElementById('edit-date').value,
+                category: document.getElementById('edit-category').value,
+                amount: parseInt(document.getElementById('edit-amount').value),
+                description: document.getElementById('edit-desc').value
+            }).eq('id', id);
+
+            if (error) { alert('Gagal update: ' + error.message); } else {
+                document.getElementById('modal-edit').style.display = 'none';
+                await fetchTransactions();
+            }
+            btn.disabled = false; btn.innerText = 'Update';
+        });
+
         function formatRp(angka) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka); }
-        function getBadgeClass(cat) {
-            if(cat === 'income') return 'income';
-            if(cat === 'outcome') return 'outcome';
-            if(cat === 'tabungan emas') return 'emas';
-            return 'tunai';
-        }
+        function getBadgeClass(cat) { return cat === 'income' ? 'income' : cat === 'outcome' ? 'outcome' : cat === 'tabungan emas' ? 'emas' : 'tunai'; }
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -374,20 +352,12 @@
             let totalOut = transactions.filter(t=>t.category==='outcome').reduce((s,t)=>s+t.amount,0);
             let totalEmas = transactions.filter(t=>t.category==='tabungan emas').reduce((s,t)=>s+t.amount,0);
             let totalTunai = transactions.filter(t=>t.category==='tabungan tunai').reduce((s,t)=>s+t.amount,0);
-            
-            let saldo = totalInc - (totalOut + totalEmas + totalTunai);
-            const currentMonthStr = document.getElementById('input-date').value.slice(0,7);
-            let outBulanIni = transactions.filter(t => t.category === 'outcome' && t.date.startsWith(currentMonthStr)).reduce((s,t)=>s+t.amount,0);
-
-            document.getElementById('header-saldo-total').innerText = formatRp(saldo);
-            document.getElementById('header-outcome-month').innerText = formatRp(outBulanIni);
+            document.getElementById('header-saldo-total').innerText = formatRp(totalInc - (totalOut + totalEmas + totalTunai));
+            document.getElementById('header-outcome-month').innerText = formatRp(transactions.filter(t => t.category === 'outcome' && t.date.startsWith(document.getElementById('input-date').value.slice(0,7))).reduce((s,t)=>s+t.amount,0));
         }
 
         function renderDashboard() {
-            const start = document.getElementById('dash-start').value;
-            const end = document.getElementById('dash-end').value;
-            let filtered = transactions.filter(t => t.date >= start && t.date <= end);
-            
+            let filtered = transactions.filter(t => t.date >= document.getElementById('dash-start').value && t.date <= document.getElementById('dash-end').value);
             document.getElementById('dash-income').innerText = formatRp(filtered.filter(t=>t.category==='income').reduce((s, t)=>s+t.amount, 0));
             document.getElementById('dash-outcome').innerText = formatRp(filtered.filter(t=>t.category==='outcome').reduce((s, t)=>s+t.amount, 0));
             document.getElementById('dash-emas').innerText = formatRp(filtered.filter(t=>t.category==='tabungan emas').reduce((s, t)=>s+t.amount, 0));
@@ -411,27 +381,18 @@
             const ctx = document.getElementById('trendChart').getContext('2d');
             if(chartInstance) chartInstance.destroy();
             let dates = [...new Set(data.map(t => t.date))].sort();
-            let dataInc = dates.map(d => data.filter(t => t.date === d && t.category === 'income').reduce((s,t)=>s+t.amount,0));
-            let dataOut = dates.map(d => data.filter(t => t.date === d && t.category === 'outcome').reduce((s,t)=>s+t.amount,0));
-
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: { labels: dates, datasets: [
-                        { label: 'Pemasukan', data: dataInc, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.1)', fill: true, tension: 0.3 },
-                        { label: 'Pengeluaran', data: dataOut, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: true, tension: 0.3 }
+                        { label: 'Pemasukan', data: dates.map(d => data.filter(t => t.date === d && t.category === 'income').reduce((s,t)=>s+t.amount,0)), borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.1)', fill: true, tension: 0.3 },
+                        { label: 'Pengeluaran', data: dates.map(d => data.filter(t => t.date === d && t.category === 'outcome').reduce((s,t)=>s+t.amount,0)), borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: true, tension: 0.3 }
                 ]},
                 options: { responsive: true, scales: { y: { grid: { color: '#35305c' } }, x: { grid: { color: '#35305c' } } } }
             });
         }
 
         function renderLogTable() {
-            const start = document.getElementById('filter-start').value;
-            const end = document.getElementById('filter-end').value;
-            const q = document.getElementById('search-log').value.toLowerCase();
-
-            let filtered = transactions.filter(t => t.date >= start && t.date <= end && t.desc.toLowerCase().includes(q))
-                                       .sort((a,b) => new Date(b.date) - new Date(a.date));
-
+            let filtered = transactions.filter(t => t.date >= document.getElementById('filter-start').value && t.date <= document.getElementById('filter-end').value && t.desc.toLowerCase().includes(document.getElementById('search-log').value.toLowerCase())).sort((a,b) => new Date(b.date) - new Date(a.date));
             let html = '';
             filtered.forEach(t => {
                 html += `<tr>
@@ -439,7 +400,10 @@
                             <td><span class="badge ${getBadgeClass(t.category)}">${t.category}</span></td>
                             <td>${formatRp(t.amount)}</td>
                             <td>${t.desc}</td>
-                            <td><button class="btn-small" onclick="showDetails('${t.id}')">Details</button></td>
+                            <td style="display:flex; gap:5px;">
+                                <button class="btn-small" onclick="showDetails('${t.id}')">Details</button>
+                                <button class="btn-small" style="background-color: #3498db; color: white;" onclick="showEdit('${t.id}')"><i class="fa-solid fa-pen"></i></button>
+                            </td>
                          </tr>`;
             });
             if(filtered.length === 0) html = `<tr><td colspan="5" style="text-align:center;">Tidak ada riwayat transaksi</td></tr>`;
@@ -449,13 +413,19 @@
         function showDetails(id) {
             const t = transactions.find(x => x.id == id);
             if(!t) return;
-            document.getElementById('modal-content').innerHTML = `
-                <p><strong>Tanggal:</strong> ${t.date}</p>
-                <p><strong>Kategori:</strong> <span class="badge ${getBadgeClass(t.category)}">${t.category}</span></p>
-                <p><strong>Nominal:</strong> ${formatRp(t.amount)}</p>
-                <p><strong>Catatan:</strong> ${t.desc}</p>
-            `;
-            document.getElementById('modal-overlay').style.display = 'flex';
+            document.getElementById('modal-content').innerHTML = `<p><strong>Tanggal:</strong> ${t.date}</p><p><strong>Kategori:</strong> <span class="badge ${getBadgeClass(t.category)}">${t.category}</span></p><p><strong>Nominal:</strong> ${formatRp(t.amount)}</p><p><strong>Catatan:</strong> ${t.desc}</p>`;
+            document.getElementById('modal-details').style.display = 'flex';
+        }
+
+        function showEdit(id) {
+            const t = transactions.find(x => x.id == id);
+            if(!t) return;
+            document.getElementById('edit-id').value = t.id;
+            document.getElementById('edit-date').value = t.date;
+            document.getElementById('edit-category').value = t.category;
+            document.getElementById('edit-amount').value = t.amount;
+            document.getElementById('edit-desc').value = t.desc;
+            document.getElementById('modal-edit').style.display = 'flex';
         }
     </script>
 </body>
